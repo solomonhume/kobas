@@ -1,0 +1,153 @@
+ Update of KOBAS 2.1.1
+
+========================
+    1. NEW FEATURES
+========================
+** Add command line optional parameters for configuring KOBAS running environment.
+** Integrated GSEA(Gene Set Enrichment Analysis) program.
+** Integrated GOslim backend database.
+** Add cluster program for reducing redunancy among the enriched gene sets.
+
+==================================
+    2. DETAILS OF NEW FEATURES
+==================================
+--------------------
+ 2.1 COMMAND LINE
+--------------------
+	For convenience to integrate KOBAS into genome analysis workflow, we add command line optional
+	parameters to configure KOBAS running environment in KOBAS standalone version. We add these 
+	parameters as following to 	"Annotate", "Identify", "Annotate + Identify":
+  -k KOBAS_HOME, --kobashome=KOBAS_HOME
+                        Optional parameter. To set path to kobas_home, which
+                        is parent directory of sqlite3/ and seq_pep/ , default
+                        value is read from ~/.kobasrcwhere you set before
+                        running kobas. If you set this parameter, it means you
+                        set "kobasdb" and "blastdb" in this following
+                        directory. e.g. "-k /home/user/kobas/", means that you
+                        set kobasdb = /home/user/kobas/sqlite3/ and blastdb =
+                        /home/user/kobas/seq_pep/
+  -v BLAST_HOME, --blasthome=BLAST_HOME
+                        Optional parameter. To set parent directory of blastx
+                        and blastp. If you set this parameter, it means you
+                        set "blastx" and "blastp" in this following directory.
+                        Default value is read from ~/.kobasrc where you set
+                        before running kobas
+  -y BLASTDB, --blastdb=BLASTDB
+                        Optional parameter. To set path to sep_pep/, default
+                        value is read from ~/.kobasrc where you set before
+                        running kobas
+  -q KOBASDB, --kobasdb=KOBASDB
+                        Optional parameter. To set path to sqlite3/, default
+                        value is read from ~/.kobasrc where you set before
+                        running kobas, e.g. "-q /kobas_home/sqlite3/"
+  -p BLASTP, --blastp=BLASTP
+                        Optional parameter. To set path to blastp program,
+                        default value is read from ~/.kobasrc where you set
+                        before running kobas
+  -x BLASTX, --blastx=BLASTX
+                        Optional parameter. To set path to  blasx program,
+                        default value is read from ~/.kobasrc where you set
+                        before running kobas
+	However, for "GSEA" (called run_gsea.py in standalone version), we only add "-k" and "-q" because of 
+inability to use BLAST.
+
+------------
+ 2.2 GSEA
+------------
+Reference :Subramanian, Tamayo, et al. (2005, PNAS 102, 15545-15550) and Mootha, Lindgren, et al. (2003, Nat Genet 34, 267-273).
+
+We have integrated GSEA algorithm into KOBAS, add the program "GSEA", which can let users analyze enriched pathways or diseases or GO (all from KOBAS Backend databases) 
+by inputting their expression data and phenotype information
+
+
+### 2.2.1  Input format
+
+You have two ways to use "GSEA"
+	** Input gct file, cls file, gmt file : the gene sets data is provided by users themselves.
+		e.g. python run_gsea.py -e gct_file -c cls_file -g gmt_file -o /output/  
+	** Input gct file, cls file, species abbreviation, id type : the gene sets data is provided by KOBAS Backend databases
+		[Pathways: KEGG PATHWAY, PID, BioCarta, Reactome, BioCyc, PANTHER;
+		 Diseases: KEGG DISEASE, OMIM, FunDo;
+		 Gene Ontology: GO, GOslim, GOslim(only leaf terms are contained)]
+		e.g. python run_gsea.py -e gct_file -c cls_file -s hsa -i id:ncbigene -d P:K/n
+
+ 	## gct file: The GCT format is a tab delimited file format that describes an expression dataset.
+				Please refer to http://www.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats#GCT:_Gene_Cluster_Text_file_format_.28.2A.gct.29
+
+			!!!Note: if you choose the second way to use "GSEA", your gene name in first column should be one type of id types which KOBAS supports(At present, 
+					they are NCBI Entrez Gene ID, NCBI GI Gene ID, Uniprot Protein ID, Ensembl Gene ID).
+
+	## cls file: The CLS file format defines phenotype (class or template) labels and associates each sample in the expression data with a label. 
+				The CLS file format uses spaces or tabs to separate the fields.
+				For more details and examples, please refer to http://www.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats#CLS:_Categorical_.28e.g_tumor_vs_normal.29_class_file_format_.28.2A.cls.29
+
+			!!!Note: At present, KOBAS only supports two categories phenotype, does not support continuous phenotypes.
+
+	## gmt file: Gene Matrix Transposed file format. The GMT file format is a tab delimited file format that describes gene sets. In the GMT format, 
+				 each row represents a gene set.
+				 For more details and examples, please refer to http://www.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats#GMT:_Gene_Matrix_Transposed_file_format_.28.2A.gmt.29
+
+	## species abbreviation: similar to input of "Annotate", for example: ko for KEGG Orthology, hsa for Homo sapiens, mmu for Mus musculus, dme for Drosophila melanogaster, ath for Arabidopsis thaliana, sce for Saccharomyces cerevisiae and eco for Escherichia coli K-12 MG1655
+
+### 2.2.2 Method to rank genes in gct file:
+	Two methods:
+		** Signal to noise ratio:
+			The default metric for ranking genes is the signal-to-noise ratio. 
+			!!! Note: To use this metric, your phenotype file must define two categorical phenotypes and your expression dataset must contain at least three (3) samples for each phenotype.
+			Signal to Noise (default) uses the difference of means scaled by the standard deviation.
+			The larger the signal-to-noise ratio, the larger the differences of the means (scaled by the standard deviations); that is, the more distinct the gene expression 
+			is in each phenotype and the more the gene acts as a "class marker".
+		** T-test:
+			T-test uses the difference of means scaled by the standard deviation and number of samples. 
+			!!! Note: You must have at least three samples for each phenotype to use this metric.
+			The larger the tTest ratio, the more distinct the gene expression is in each phenotype and the more the gene acts as a "class marker"
+	
+	REFERENCE: http://software.broadinstitute.org/gsea/doc/GSEAUserGuideFrame.html
+
+### 2.2.3 Output files:
+	Four types output files:
+	** summary: description of number of all gene sets, number of analyzed gene sets, and number of significant gene sets.
+	** PhenotypeName_Enrichment_Gene_Sets: table of enrichment gene sets' name, description, size, enrichment score(ES), normalized enrichment score(NES), nominal p-value, FDR; 
+        sorted by NES absolute value in descending order.
+	** PhenotypeName_GeneSetName_detail_info: which genes in this gene set is attributed to gene set enrichment. Only details of top 20 gene sets of each phenotypes are shown.
+	** PhenotypeName.pdf: plots of running enrichment score. Only plots of top 20 gene sets of each phenotypes are shown.
+
+---------------
+ 2.3 GOslim
+---------------
+
+## What is GO slims?
+GO slims are cut-down versions of the GO ontologies containing a subset of the terms in the whole GO. They give a broad overview of the ontology content without the detail of the specific fine grained terms.
+
+GO slims are particularly useful for giving a summary of the results of GO annotation of a genome, microarray, or cDNA collection when broad classification of gene product function is required. 
+
+GO slims are created by users according to their needs, and may be specific to species or to particular areas of the ontologies. GO provides a generic GO slim which, like the GO itself, is not species specific, and which should be suitable for most purposes. Alternatively, users can create their own GO slims or use one of the model organism-specific slims integrated into the GO flat file. Please email the GO helpdesk for more information about creating and submitting your GO slim.
+
+For more details, refer to http://geneontology.org/page/go-slim-and-subset-guide
+
+## Consider users' requirement, we constructed two tables : GOslim and GOslim_leaf.
+	** GOslim : in this table, one go term is related to all genes which go terms related to (including parent terms, children terms and itself) this term contain.
+	** GOslim_leaf: in this table, one go term is related to all genes which itself contains
+
+
+----------------------
+ 2.4 Cluster program
+----------------------
+## What is cluster ?
+To reduce the redundancy of enriched gene sets (got from KOBAS-Identify) and make similar gene sets cluster together, we developed a program called "cluster".
+
+## Where is cluster ?
+Under the directory "kobas/scripts/" .
+
+## What are the methods of cluster ?
+There are two methods, "Kappa" and "Jaccard".
+"Kappa" uses Kappa concordance test to measure similarity of gene sets. 
+"Jaccard" uses Jaccard similarity to measure similarity of gene sets.
+We choose "Kappa" for default setting.
+
+## How to use cluster ?
+  Use "python cluster.py -h" to see help page.
+  ** Input file: the output of KOBAS-Identify
+  ** Choose which mmethod, Kapa or Jaccard, default Kappa.
+  ** Output file: the clustered gene sets.
+
